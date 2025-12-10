@@ -1,0 +1,13 @@
+/* Minimal styles used by pages (copy/adapt from original) */
+body { margin:0; font-family: Inter, system-ui, Arial, sans-serif; background:#f3f4f6; color:#111827; }
+.container { max-width:720px; margin:24px auto; padding:0 16px; }
+.header { height:150px; background:linear-gradient(90deg,#0ea5e9,#7c3aed); color:white; display:flex; align-items:center; justify-content:center; border-radius:8px 8px 0 0; position:relative; overflow:hidden; }
+.header-overlay{ position:absolute; inset:0; opacity:0.15; }
+.card { background:white; padding:18px; border-radius:8px; box-shadow:0 6px 18px rgba(2,6,23,0.06); margin-top:-32px; }
+.input, .select { width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:6px; }
+.btn { background:#2563eb; color:white; padding:10px 14px; border-radius:6px; border:none; cursor:pointer; }
+.notice { background:#fef3c7; padding:10px; border-radius:6px; margin-top:12px; color:#92400e; }
+.small { font-size:13px; color:#6b7280; }
+.results-grid { display:flex; gap:12px; flex-wrap:wrap; }
+.result-item { background:#f9fafb; padding:12px; border-radius:8px; min-width:120px; text-align:center; }
+.fireworks-canvas { position:fixed; inset:0; pointer-events:none; z-index:0; }
