@@ -114,8 +114,7 @@ export default function Vote() {
     };
   }, []);
 
-  // Helper to run several bursts with slight delay for effect
-  function doBursts(count = 6) {
+  function doBursts(count = 8) {
     const api = apiRef.current;
     if (!api || !api.burst) return;
     for (let i = 0; i < count; i++) {
@@ -144,12 +143,10 @@ export default function Vote() {
         return;
       }
 
-      // Success: show fireworks and final message
       setAlready(true);
       setStatus('Vote berhasil — terima kasih!');
       setShowThanks(true);
-      doBursts(8); // bigger celebration
-      // auto-dismiss thanks overlay after 6s
+      doBursts(8);
       setTimeout(() => setShowThanks(false), 6000);
       setBusy(false);
     } catch (err) {
@@ -213,7 +210,6 @@ export default function Vote() {
         </div>
       </div>
 
-      {/* Thank you overlay shown on success */}
       {showThanks && (
         <div
           className="thanks-overlay"
