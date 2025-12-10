@@ -1,0 +1,172 @@
+import { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/router';
+
+const OPTIONS = ['Lanjut Ronda', 'Stop Ronda'];
+const POLL_ID = process.env.NEXT_PUBLIC_POLL_ID || 'ronda';
+
+function getCookie(name) {
+  const m = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  return m ? decodeURIComponent(m[2]) : null;
+}
+
+export default function Vote() {
+  const [phone, setPhone] = useState(null);
+  const [choice, setChoice] = useState(OPTIONS[0]);
+  const [status, setStatus] = useState('');
+  const [already, setAlready] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const canvasRef = useRef(null);
+  const router = useRouter();
+
+  useEffect(()=>{
+    const p = getCookie('phone');
+    if (!p) {
+      router.push('/');
+      return;
+    }
+    setPhone(p);
+
+    fetch(`/api/check?id=${encodeURIComponent(POLL_ID)}`)
+      .then(r => r.json())
+      .then(j => { if (j && j.already) setAlready(true); })
+      .catch(()=>{});
+  },[]);
+
+  useEffect(()=> {
+    let raf;
+    let particles = [];
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+    function random(min,max){ return Math.random()*(max-min)+min; }
+
+    function spawnFirework() {
+      const cx = random(canvas.width*0.2, canvas.width*0.8);
+      const cy = random(canvas.height*0.1, canvas.height*0.6);
+      const count = 30 + Math.round(random(10,50));
+      const hue = Math.round(random(0,360));
+      for (let i=0;i<count;i++){
+        const angle = Math.random()*Math.PI*2;
+        const speed = Math.random()*4 + 1.5;
+        particles.push({
+          x: cx, y: cy,
+          vx: Math.cos(angle)*speed,
+          vy: Math.sin(angle)*speed,
+          life: 60 + Math.round(Math.random()*40),
+          age: 0,
+          color: `hsl(${hue} ${60 + Math.random()*40}% 50%)`,
+        });
+      }
+    }
+
+    function frame(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      for (let i=particles.length-1;i>=0;i--){
+        const p = particles[i];
+        p.vy += 0.02;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.age++;
+        const alpha = Math.max(0, 1 - p.age / p.life);
+        if (alpha <= 0) {
+          particles.splice(i,1);
+          continue;
+        }
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2.2, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      raf = requestAnimationFrame(frame);
+    }
+    frame();
+    const api = { burst: spawnFirework, cleanup: ()=>{ cancelAnimationFrame(raf); window.removeEventListener('resize', resize); } };
+    (canvasRef.current)._api = api;
+    return ()=>{ api.cleanup(); };
+  }, []);
+
+  async function onVote(e) {
+    e.preventDefault();
+    setStatus('');
+    setBusy(true);
+    try {
+      const payload = { id: POLL_ID, option: choice };
+      const res = await fetch('/api/vote', {
+        method:'POST',
+        headers:{ 'content-type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload)
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        if (res.status === 409) setStatus('Anda sudah memberikan suara sebelumnya.');
+        else if (res.status === 401) setStatus('Autentikasi hilang. Silakan login lagi.');
+        else setStatus(j.error || 'Gagal submit');
+        setBusy(false);
+        return;
+      }
+      setStatus('Vote berhasil — terima kasih!');
+      setAlready(true);
+      const api = (canvasRef.current && canvasRef.current._api);
+      if (api) {
+        for (let i=0;i<6;i++){ setTimeout(()=>api.burst(), i*250); }
+      }
+      setBusy(false);
+    } catch (err) {
+      setStatus('Koneksi error');
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div>
+      <canvas ref={canvasRef} className="fireworks-canvas" />
+      <div className="container">
+        <div className="header">
+          <div className="header-overlay" />
+          <h1>Voting</h1>
+        </div>
+
+        <div style={{height:12}} />
+
+        <div className="card">
+          <h3>Selamat datang</h3>
+          <p className="small">Nomor: {phone || '—'}</p>
+
+          {already ? (
+            <div>
+              <div className="notice">Anda sudah memberikan suara. Terima kasih.</div>
+              <div style={{marginTop:12}}>
+                <a href="/public" className="btn" style={{background:'#111827'}}>Lihat Hasil Publik</a>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={onVote}>
+              <p className="small">Demi Kebaikan RT kita silakan pilih sesuai keinginan panjenengan. di jamin aman!!!</p>
+              <select className="select" value={choice} onChange={(e)=>setChoice(e.target.value)}>
+                {OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+              <div style={{display:'flex', gap:8, marginTop:8}}>
+                <button className="btn" disabled={busy}>{busy ? 'Mengirim...' : 'Kirim Vote'}</button>
+                <a href="/public" className="small center" style={{alignItems:'center', padding:'10px'}}>Lihat hasil publik</a>
+              </div>
+              {status && <div className="notice" style={{marginTop:12}}>{status}</div>}
+            </form>
+          )}
+
+          <div style={{marginTop:12}}>
+            <small>Nomor HP disimpan di cookie. Vote disimpan di Redis (Upstash).</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
